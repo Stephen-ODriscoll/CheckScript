@@ -2,12 +2,13 @@ import os
 import filecmp
 import subprocess
 from datetime import datetime
+from collections import defaultdict
 
 erase_after_run = True
 log = open("CheckLog.txt", 'a')
+defaultConfig = {"timeout": 30}
 teams_folder = "C:\\Users\\steph\\OneDrive\\Desktop\\checkScript\\teams"
-input_folder = "C:\\Users\\steph\\OneDrive\\Desktop\\checkScript\\input"
-output_folder = "C:\\Users\\steph\\OneDrive\\Desktop\\checkScript\\output"
+tests_folder = "C:\\Users\\steph\\OneDrive\\Desktop\\checkScript\\tests"
 
 
 def p1(file):
@@ -54,13 +55,10 @@ def p5(file):
     check_problem(file, inputs, outputs, 10)
 
 
-def check_problem(file, inputs, outputs, timeout):
-    if len(inputs) != len(outputs):
-        return ""
 
+def run_tests(file, inputs, outputs, timeout):
     try:
-        correct = 0
-        for i in range(len(inputs)):
+        for i  in range(len(inputs)):
             if file.endswith(".exe"):
                 command = file + " " + inputs[i] + " output.txt"
             elif file.endswith(".py"):
@@ -78,15 +76,11 @@ def check_problem(file, inputs, outputs, timeout):
             subprocess.Popen(command, shell=True, creationflags=subprocess.DETACHED_PROCESS).wait(timeout)
 
             with open('output.txt') as output, open(outputs[i]) as expected:
-                if filecmp.cmp(output, expected, False):
-                    correct += 1
-                else:
-                    break
+                if not filecmp.cmp(output, expected, False):
+                    write(file + " failed test case " + inputs[i] + "\n")
+                    return
 
-        if correct == len(outputs):
-            write(file + " successfully passed all tests\n")
-        else:
-            write(file + " failed test case " + str(correct) + "\n")
+        write(file + " successfully passed all tests\n")
 
     except subprocess.CalledProcessError:
         write(file + " threw an exception during execution\n")
@@ -98,45 +92,70 @@ def check_problem(file, inputs, outputs, timeout):
         write("Unknown error occurred\n")
 
 
+def parse_config_file(file_path):
+    config = dict()
+
+    # Get configurations from config file
+    with open(file_path) as config_file:
+        for line in config_file:
+            splits = line.split('=')
+            config[splits[0]] = splits[1]
+
+    # Add default config for unspecified options
+    for key, value in defaultConfig.items():
+        if key not in config:
+            config[key] = value
+
+    return config
+
+
 def main():
-    test_inputs = [folder.lower() for folder in os.listdir(input_folder)]
-    test_outputs = [folder.lower() for folder in os.listdir(output_folder)]
+    # Dictionary where key is file path, each entry contains config info, inputs and outputs with mod time
+    tests = defaultdict(lambda: [dict(), [], []])
 
-    if test_inputs != test_outputs:
-        write("Some inputs don't have corresponding outputs or vice versa. Exiting")
-        exit()
+    for folder in os.listdir(tests_folder):
+        found_config = False
+        for file in os.path.join(tests_folder, folder):
+            file_path = os.path.join(tests_folder, folder, file)
+            if file_path.endswith(".in"):
+                file_path2 = file_path[:-3] + ".out"
+                if os.path.exists(file_path2):
+                    tests[folder][1].append(tuple((file_path, os.path.getmtime(file_path))))
+                    tests[folder][2].append(tuple((file_path2, os.path.getmtime(file_path2))))
+                else:
+                    write("No corresponding output for " + file_path)
 
-    files_to_ignore = []
+            elif file_path.endswith(".config"):
+                found_config = True
+                tests[folder][0] = parse_config_file(file_path)
+
+        if not found_config:
+            write("No config file found in folder " + folder)
+
+    files_to_ignore = set()
     while True:
         for folder in os.listdir(teams_folder):
             for file in os.listdir(os.path.join(teams_folder, folder)):
 
                 file_path = os.path.join(teams_folder, folder, file)
-                if files_to_ignore.__contains__(file_path):
+                if file_path in files_to_ignore:
                     continue
 
-                try:
-                    index = test_inputs.index(os.path.basename(file).lower())
-                except ValueError:
-                    write(file + " doesn't match any tests, tests are: " + str(input_folder))
-                if to_match == "P1":
-                    result = p1(file_path)
-                elif to_match.__contains__("P2"):
-                    result = p2(file_path)
-                elif to_match.__contains__("P3"):
-                    result = p3(file_path)
-                elif to_match.__contains__("P4"):
-                    result = p4(file_path)
-                elif to_match.__contains__("P5"):
-                    result = p5(file_path)
+                key = os.path.splitext(file)
+                if key in tests:
+                    run_tests(file_path, tests[key])
                 else:
-                    write(file_path + " didn't match any known problems\n")
+                    write(file + " doesn't match any tests and will be ignored")
 
                 while os.path.exists(file_path):
                     try:
                         os.remove(file_path)
                     except Exception:
                         pass
+
+        for ignored in list(files_to_ignore):
+            if os.path.exists(ignored):
+                files_to_ignore.remove(ignored)
 
 
 def write(message):
