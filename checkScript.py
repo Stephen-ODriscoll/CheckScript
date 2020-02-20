@@ -88,7 +88,7 @@ def validate_integrity(files):
             write("FATAL: " + file[0] + " no longer exists")
             exit()
         elif file[1] != os.path.getmtime(file[0]):
-            write("FATAL: " + file[0] + " has been modified, this action may have been malicious")
+            write("FATAL: " + file[0] + " has been modified. Please verify this files integrity.")
             exit()
 
 
