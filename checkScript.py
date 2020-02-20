@@ -3,10 +3,9 @@ import subprocess
 from datetime import datetime
 from collections import defaultdict
 
-DETACHED_PROCESS = 0x00000008
 erase_after_run = True
 output_to = "output.out"
-log = open("CheckLog.txt", 'a')
+log = open("checkScript.log", 'a')
 default_config = {"timeout": 30}
 teams_folder = "C:\\Users\\R00146853\\Desktop\\CheckScript\\teams"
 tests_folder = "C:\\Users\\R00146853\\Desktop\\CheckScript\\tests"
@@ -30,7 +29,13 @@ def run_tests(file, configs, inputs, outputs):
                 os.remove(output_to)
 
             write("Command = " + command)
-            subprocess.Popen(command, shell=True, creationflags=DETACHED_PROCESS).wait(configs["timeout"])
+            process = subprocess.Popen(command, stdin=None, stdout=None, stderr=None)
+            try:
+                process.wait(configs["timeout"])
+            except subprocess.TimeoutExpired:
+                write(file + " was timed out after " + str(configs["timeout"]) + " seconds")
+                process.kill()
+                return
 
             # Validate input & output file integrity. If a file was modified it may have been modified maliciously
             validate_integrity(inputs)
@@ -46,10 +51,6 @@ def run_tests(file, configs, inputs, outputs):
 
         write(file + " successfully passed all " + str(len(inputs)) + " tests")
 
-    except subprocess.CalledProcessError:
-        write(file + " threw an exception during execution")
-    except subprocess.TimeoutExpired:
-        write(file + " was timed out after " + str(configs["timeout"]) + " seconds")
     except FileNotFoundError:
         write("File not found error")
     except Exception:

@@ -24,7 +24,7 @@ def insert_number(grid, penalties, n, row, column, number):
 
 
 if __name__ == "__main__":
-    input_file =  open(sys.argv[1], "r")
+    input_file = open(sys.argv[1], "r")
     line = input_file.readline().split()
     n, k = int(line[0]), int(line[1])
     dimensions = n * n
