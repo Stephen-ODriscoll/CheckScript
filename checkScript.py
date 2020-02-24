@@ -1,14 +1,18 @@
 import os
+import argparse
 import subprocess
+from time import sleep
 from datetime import datetime
 from collections import defaultdict
 
-erase_after_run = True
+
+# Command line args
+teams_folder, tests_folder, remove_after = "", "", False
+
+# Don't modify
 output_to = "output.out"
 log = open("checkScript.log", 'a')
 default_config = {"timeout": 30}
-teams_folder = "C:\\Users\\R00146853\\Desktop\\CheckScript\\teams"
-tests_folder = "C:\\Users\\R00146853\\Desktop\\CheckScript\\tests"
 
 
 def run_tests(file, configs, inputs, outputs):
@@ -45,7 +49,7 @@ def run_tests(file, configs, inputs, outputs):
                 write(file + " didn't produce an output file for test " + inputs[i][0])
                 return
 
-            if not compare_files(output_to, outputs[i][0]):
+            if not compare_files(file, output_to, outputs[i][0]):
                 write(file + " failed test case " + inputs[i][0])
                 return
 
@@ -57,7 +61,7 @@ def run_tests(file, configs, inputs, outputs):
         write("Unknown error occurred")
 
 
-def compare_files(output, expected):
+def compare_files(file, output, expected):
     with open(output, 'r') as o_file, open(expected, 'r') as e_file:
         o_lines, e_lines = list(o_file), list(e_file)
 
@@ -66,6 +70,7 @@ def compare_files(output, expected):
         e_stripped = e_lines[i].strip()
         if e_stripped:
             if len(o_lines) <= j:
+                write(file + " output ended before end of expected output")
                 return False
 
             o_stripped = o_lines[j].strip()
@@ -74,12 +79,12 @@ def compare_files(output, expected):
                     i += 1
                     j += 1
                 else:
+                    write(file + " gave output: " + o_stripped + ". Expected output was: " + e_stripped)
                     return False
             else:
                 j += 1
         else:
             i += 1
-
     return True
 
 
@@ -147,11 +152,22 @@ def main():
                 if key in tests:
                     run_tests(file_path, tests[key][0], tests[key][1], tests[key][2])
 
-                    while os.path.exists(file_path):
-                        try:
-                            os.remove(file_path)
-                        except Exception:
-                            pass
+                    if remove_after:
+                        attempts = 0
+                        while os.path.exists(file_path) and attempts < 5:
+                            try:
+                                attempts += 1
+                                os.remove(file_path)
+                            except Exception:
+                                sleep(0.2)
+                        if os.path.exists(file_path):
+                            write(file_path + " couldn't be removed and will be ignored instead")
+                            files_to_ignore.append(file_path)
+                        else:
+                            write(file_path + " was removed")
+                    else:
+                        write(file_path + " will be ignored")
+                        files_to_ignore.append(file_path)
                 else:
                     write(file_path + " doesn't match any tests and will be ignored")
                     files_to_ignore.append(file_path)
@@ -159,13 +175,28 @@ def main():
         for ignored in list(files_to_ignore):
             if not os.path.exists(ignored):
                 files_to_ignore.remove(ignored)
+        sleep(1)
 
 
 def write(message):
     print(message)
-    log.write(str(datetime.now()) + " | " + message + "\n")
+    log.write(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + " | " + message + "\n")
     log.flush()
 
 
+def parse_args():
+    global teams_folder, tests_folder, remove_after
+    parser = argparse.ArgumentParser()
+    parser.add_argument("teams", help="Path to teams folder")
+    parser.add_argument("tests", help="Path to tests folder")
+    parser.add_argument("-r", "--remove_after", action="store_true", help="Remove tests after they've been run")
+    args = parser.parse_args()
+
+    teams_folder = args.teams
+    tests_folder = args.tests
+    remove_after = args.remove_after
+
+
 if __name__ == "__main__":
+    parse_args()
     main()
