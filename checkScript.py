@@ -65,26 +65,19 @@ def compare_files(file, output, expected):
     with open(output, 'r') as o_file, open(expected, 'r') as e_file:
         o_lines, e_lines = list(o_file), list(e_file)
 
-    i, j = 0, 0
-    while i < len(e_lines):
-        e_stripped = e_lines[i].strip()
-        if e_stripped:
-            if len(o_lines) <= j:
-                write(file + " output ended before end of expected output")
-                return False
-
-            o_stripped = o_lines[j].strip()
-            if o_stripped:
-                if e_stripped == o_stripped:
-                    i += 1
-                    j += 1
-                else:
-                    write(file + " gave output: " + o_stripped + ". Expected output was: " + e_stripped)
-                    return False
-            else:
-                j += 1
-        else:
-            i += 1
+    o_index, e_index = 0, 0
+    o_length, e_length = len(o_lines), len(e_lines)
+    while o_index < o_length or e_index < e_length:
+        o_stripped, e_stripped = "", ""
+        while o_index < o_length and not o_stripped:
+            o_stripped = o_lines[o_index].strip()
+            o_index += 1
+        while e_index < e_length and not e_stripped:
+            e_stripped = e_lines[e_index].strip()
+            e_index += 1
+        if o_stripped != e_stripped:
+            write(file + " gave output: " + o_stripped + ". Expected output was: " + e_stripped)
+            return False
     return True
 
 
