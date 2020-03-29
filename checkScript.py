@@ -61,6 +61,7 @@ def run_tests(file, configs, inputs, outputs):
         write("Unknown error occurred")
 
 
+# Compare files whilst ignoring blank lines
 def compare_files(file, output, expected):
     with open(output, 'r') as o_file, open(expected, 'r') as e_file:
         o_lines, e_lines = list(o_file), list(e_file)
@@ -76,11 +77,17 @@ def compare_files(file, output, expected):
             e_stripped = e_lines[e_index].strip()
             e_index += 1
         if o_stripped != e_stripped:
-            write(file + " gave output: " + o_stripped + ". Expected output was: " + e_stripped)
+            if not o_stripped:
+                write(file + " doesn't contain enough lines.")
+            elif not e_stripped:
+                write(file + " matches expected output but contains too many lines. ")
+            else:
+                write(file + " gave output: " + o_stripped + ". Expected output was: " + e_stripped)
             return False
     return True
 
 
+# Verify the file still exists and hasn't been modified
 def validate_integrity(files):
     for file in files:
         if not os.path.exists(file[0]):
@@ -91,6 +98,7 @@ def validate_integrity(files):
             exit()
 
 
+# Take options from .config file and put them into a dictionary
 def parse_config_file(file_path):
     config = dict()
 
